@@ -1,4 +1,4 @@
-import type { GovernorConfig, Network } from "@nebgov/sdk";
+import type { GovernorConfig, GuardianCouncilConfig, Network } from "@nebgov/sdk";
 import { backendBaseUrl } from "./backend";
 
 /** Governor client config from Next public env (or null if misconfigured). */
@@ -45,4 +45,25 @@ export function subscriptionOptsFromConfig(config: GovernorConfig): {
 /** Returns the indexer base URL or null if not configured. */
 export function readIndexerUrl(): string | null {
   return process.env.NEXT_PUBLIC_INDEXER_URL ?? null;
+}
+
+/**
+ * Guardian council client config from Next public env, or null when the
+ * council address is not configured. Reads need a funded account to simulate
+ * from, so the caller supplies the connected wallet; otherwise the optional
+ * `NEXT_PUBLIC_SIMULATION_ACCOUNT` is used.
+ */
+export function readGuardianCouncilConfig(
+  simulationAccount?: string | null,
+): GuardianCouncilConfig | null {
+  const guardianCouncilAddress = process.env.NEXT_PUBLIC_GUARDIAN_COUNCIL_ADDRESS;
+  if (!guardianCouncilAddress) return null;
+  const rpcUrl = process.env.NEXT_PUBLIC_RPC_URL;
+  const account = simulationAccount || process.env.NEXT_PUBLIC_SIMULATION_ACCOUNT;
+  return {
+    guardianCouncilAddress,
+    network: (process.env.NEXT_PUBLIC_NETWORK || "testnet") as Network,
+    ...(rpcUrl ? { rpcUrl } : {}),
+    ...(account ? { simulationAccount: account } : {}),
+  };
 }

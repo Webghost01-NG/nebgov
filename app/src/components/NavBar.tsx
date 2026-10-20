@@ -27,6 +27,8 @@ import {
   Gift,
   Lock,
   FileText,
+  Shield,
+  ShieldCheck,
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
 import { useTranslations } from "next-intl";
@@ -47,7 +49,6 @@ function formatGovernanceAmount(v: bigint): string {
 // Route audit: /health is an API-only endpoint (no user page), so it remains intentionally unlinked.
 const NAV_LINKS = [
   { name: "Proposals", href: "/", icon: LayoutDashboard },
-  { name: "Drafts", href: "/drafts", icon: FileText },
   { name: "Conviction", href: "/conviction", icon: Activity },
   { name: "Optimistic", href: "/optimistic", icon: FastForward },
   { name: "Governors", href: "/governors", icon: LayoutDashboard },
@@ -56,6 +57,7 @@ const NAV_LINKS = [
   { name: "Rewards", href: "/rewards", icon: Gift },
   { name: "Vote Escrow", href: "/vote-escrow", icon: Lock },
   { name: "Bonds", href: "/bonds", icon: Wallet2 },
+  { name: "Guardian", href: "/guardian", icon: ShieldCheck },
   { name: "Drafts", href: "/drafts", icon: FileText },
   { name: "Delegates", href: "/delegates", icon: Users },
   { name: "Analytics", href: "/analytics", icon: BarChart3 },
@@ -172,7 +174,6 @@ export function NavBar() {
             role="navigation"
             aria-label="Main"
           >
-            {NAV_LINKS.map((link) => {
             {VISIBLE_NAV_LINKS.map((link) => {
               const isActive = pathname === link.href;
               return (
@@ -386,7 +387,6 @@ export function NavBar() {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-2 mb-3">
                 Navigation
               </p>
-              {NAV_LINKS.map((link) => {
               {VISIBLE_NAV_LINKS.map((link) => {
                 const isActive = pathname === link.href;
                 const LinkIcon = link.icon;

@@ -24,7 +24,8 @@ export type GuardianAction =
   | { tag: "Pause" | "Unpause" }
   | { tag: "CancelActive" | "CancelQueued"; proposalId: bigint }
   | { tag: "RotateMember"; old: string; new: string }
-  | { tag: "SetThreshold"; threshold: number };
+  | { tag: "SetThreshold"; threshold: number }
+  | { tag: "SetActionTtl"; ttlLedgers: number };
 
 export interface PendingAction {
   id: bigint;
@@ -45,6 +46,9 @@ export function encodeGuardianAction(action: GuardianAction): xdr.ScVal {
       break;
     case "SetThreshold":
       values.push(nativeToScVal(action.threshold, { type: "u32" }));
+      break;
+    case "SetActionTtl":
+      values.push(nativeToScVal(action.ttlLedgers, { type: "u32" }));
       break;
     case "RotateMember":
       values.push(
@@ -77,6 +81,8 @@ export function decodeGuardianAction(raw: unknown): GuardianAction {
       return { tag, proposalId: BigInt(value) };
     case "SetThreshold":
       return { tag, threshold: Number(value) };
+    case "SetActionTtl":
+      return { tag, ttlLedgers: Number(value) };
     case "RotateMember":
       return { tag, old: String(value.old), new: String(value.new) };
     default:
@@ -84,7 +90,12 @@ export function decodeGuardianAction(raw: unknown): GuardianAction {
   }
 }
 
-/** Keypair-based transactions and read-only RPC views for the guardian council. */
+/** True when a simulation failed with the contract's `ActionNotFound` (#4). */
+function isActionNotFound(err: unknown): boolean {
+  return err instanceof Error && /Error\(Contract, #4\)/.test(err.message);
+}
+
+/** Keypair- and wallet-signed transactions plus read-only RPC views for the guardian council. */
 export class GuardianCouncilClient {
   private readonly server: SorobanRpc.Server;
   private readonly contract: Contract;
@@ -171,6 +182,74 @@ export class GuardianCouncilClient {
     ).hash;
   }
 
+  /** Wallet-signing variant of {@link proposeAction}. */
+  async proposeActionWithSign(
+    proposerPublicKey: string,
+    action: GuardianAction,
+    signUnsignedXdr: (xdr: string) => Promise<string>,
+  ): Promise<bigint> {
+    const result = await this.submitWithSign(
+      proposerPublicKey,
+      signUnsignedXdr,
+      "propose_action",
+      nativeToScVal(proposerPublicKey, { type: "address" }),
+      encodeGuardianAction(action),
+    );
+    if (!result.returnValue)
+      throw new Error("Missing action ID in transaction result");
+    return BigInt(scValToNative(result.returnValue));
+  }
+
+  /** Wallet-signing variant of {@link approveAction}. */
+  async approveActionWithSign(
+    memberPublicKey: string,
+    actionId: bigint,
+    signUnsignedXdr: (xdr: string) => Promise<string>,
+  ): Promise<string> {
+    return (
+      await this.submitWithSign(
+        memberPublicKey,
+        signUnsignedXdr,
+        "approve_action",
+        nativeToScVal(memberPublicKey, { type: "address" }),
+        nativeToScVal(actionId, { type: "u64" }),
+      )
+    ).hash;
+  }
+
+  /** Wallet-signing variant of {@link revokeApproval}. */
+  async revokeApprovalWithSign(
+    memberPublicKey: string,
+    actionId: bigint,
+    signUnsignedXdr: (xdr: string) => Promise<string>,
+  ): Promise<string> {
+    return (
+      await this.submitWithSign(
+        memberPublicKey,
+        signUnsignedXdr,
+        "revoke_approval",
+        nativeToScVal(memberPublicKey, { type: "address" }),
+        nativeToScVal(actionId, { type: "u64" }),
+      )
+    ).hash;
+  }
+
+  /** Wallet-signing variant of {@link executeAction}. */
+  async executeActionWithSign(
+    callerPublicKey: string,
+    actionId: bigint,
+    signUnsignedXdr: (xdr: string) => Promise<string>,
+  ): Promise<string> {
+    return (
+      await this.submitWithSign(
+        callerPublicKey,
+        signUnsignedXdr,
+        "execute_action",
+        nativeToScVal(actionId, { type: "u64" }),
+      )
+    ).hash;
+  }
+
   /** Read an action, including its approvals and execution status. */
   async getAction(actionId: bigint): Promise<PendingAction> {
     const raw = (await this.simulate(
@@ -195,13 +274,57 @@ export class GuardianCouncilClient {
   async getThreshold(): Promise<number> {
     return Number(await this.simulate("get_threshold"));
   }
+  /** Read the action expiry window in ledgers; `0` means actions never expire. */
+  async getActionTtl(): Promise<number> {
+    return Number(await this.simulate("get_action_ttl"));
+  }
+
+  /**
+   * List actions in id order, starting at `startId`.
+   *
+   * The contract has no action counter view, so this reads ids sequentially
+   * and stops at the first id the contract reports as `ActionNotFound`
+   * (ids are never skipped). Any other failure is rethrown.
+   */
+  async listActions(startId = 0n, limit = 50): Promise<PendingAction[]> {
+    const actions: PendingAction[] = [];
+    for (let id = startId; actions.length < limit; id += 1n) {
+      try {
+        actions.push(await this.getAction(id));
+      } catch (err) {
+        if (isActionNotFound(err)) break;
+        throw err;
+      }
+    }
+    return actions;
+  }
+
   /** Read the governor protected by this council. */
   async getGovernor(): Promise<string> {
     return String(await this.simulate("get_governor"));
   }
 
   private async submit(signer: Keypair, fn: string, ...args: xdr.ScVal[]) {
-    const account = await this.server.getAccount(signer.publicKey());
+    const prepared = await this.prepare(signer.publicKey(), fn, args);
+    prepared.sign(signer);
+    return this.send(prepared);
+  }
+
+  private async submitWithSign(
+    signerPublicKey: string,
+    signUnsignedXdr: (xdr: string) => Promise<string>,
+    fn: string,
+    ...args: xdr.ScVal[]
+  ) {
+    const prepared = await this.prepare(signerPublicKey, fn, args);
+    const signedXdr = await signUnsignedXdr(prepared.toXDR());
+    return this.send(
+      TransactionBuilder.fromXDR(signedXdr, this.passphrase),
+    );
+  }
+
+  private async prepare(source: string, fn: string, args: xdr.ScVal[]) {
+    const account = await this.server.getAccount(source);
     const tx = new TransactionBuilder(account, {
       fee: BASE_FEE,
       networkPassphrase: this.passphrase,
@@ -209,8 +332,12 @@ export class GuardianCouncilClient {
       .addOperation(this.contract.call(fn, ...args))
       .setTimeout(30)
       .build();
-    const prepared = await this.server.prepareTransaction(tx);
-    prepared.sign(signer);
+    return this.server.prepareTransaction(tx);
+  }
+
+  private async send(
+    prepared: Parameters<SorobanRpc.Server["sendTransaction"]>[0],
+  ) {
     const sent = await this.server.sendTransaction(prepared);
     if (sent.status === "ERROR")
       throw new Error(

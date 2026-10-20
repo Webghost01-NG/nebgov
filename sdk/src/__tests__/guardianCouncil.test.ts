@@ -23,6 +23,7 @@ const actions: GuardianAction[] = [
   { tag: "CancelQueued", proposalId: 4n },
   { tag: "RotateMember", old: signer.publicKey(), new: address },
   { tag: "SetThreshold", threshold: 2 },
+  { tag: "SetActionTtl", ttlLedgers: 0 },
 ];
 
 it.each(actions)(
@@ -124,6 +125,63 @@ describe("GuardianCouncilClient RPC", () => {
     expect(calls[0].args[0].vec()![0].switch().name).toBe("scvAddress");
     expect(scValToNative(calls[2].args[0])).toBe(signer.publicKey());
     expect(scValToNative(calls[4].args[0])).toBe(9n);
+  });
+  it("submits wallet-signed mutations through the supplied signer", async () => {
+    const c = client();
+    const signed: string[] = [];
+    const sign = async (unsignedXdr: string) => {
+      signed.push(unsignedXdr);
+      return unsignedXdr;
+    };
+    const who = signer.publicKey();
+    expect(
+      await finish(c.proposeActionWithSign(who, actions[6], sign)),
+    ).toBe(9n);
+    await finish(c.approveActionWithSign(who, 9n, sign));
+    await finish(c.revokeApprovalWithSign(who, 9n, sign));
+    await finish(c.executeActionWithSign(who, 9n, sign));
+    expect(signed).toHaveLength(4);
+    expect(calls.map((call) => call.function)).toEqual([
+      "propose_action",
+      "approve_action",
+      "revoke_approval",
+      "execute_action",
+    ]);
+    expect(calls.map((call) => call.args.length)).toEqual([2, 2, 2, 1]);
+    expect(scValToNative(calls[1].args[0])).toBe(who);
+    expect(scValToNative(calls[3].args[0])).toBe(9n);
+  });
+  it("reads the action TTL", async () => {
+    retval = nativeToScVal(120, { type: "u32" });
+    expect(await client().getActionTtl()).toBe(120);
+  });
+  it("lists actions until the contract reports ActionNotFound", async () => {
+    const c = client();
+    const action = (id: bigint): GuardianAction => ({
+      tag: "CancelActive",
+      proposalId: id,
+    });
+    jest.spyOn(c, "getAction").mockImplementation(async (id) => {
+      if (id >= 3n)
+        throw new Error(
+          "Guardian council simulation failed: HostError: Error(Contract, #4)",
+        );
+      return {
+        id,
+        action: action(id),
+        proposer: signer.publicKey(),
+        createdLedger: 1,
+        approvals: [],
+        executed: false,
+      };
+    });
+    expect((await c.listActions()).map((a) => a.id)).toEqual([0n, 1n, 2n]);
+    expect((await c.listActions(1n, 1)).map((a) => a.id)).toEqual([1n]);
+  });
+  it("rethrows unexpected failures while listing actions", async () => {
+    const c = client();
+    jest.spyOn(c, "getAction").mockRejectedValue(new Error("rpc offline"));
+    await expect(c.listActions()).rejects.toThrow("rpc offline");
   });
   it("maps views and full-width IDs", async () => {
     const c = client();

@@ -61,6 +61,12 @@ describe("NavBar", () => {
     expect(screen.getByRole("link", { name: "Security" }).getAttribute("href")).toBe("/security");
   });
 
+  it("renders a Guardian navigation link", () => {
+    render(<NavBar />);
+
+    expect(screen.getByRole("link", { name: "Guardian" }).getAttribute("href")).toBe("/guardian");
+  });
+
   it("keeps existing core links in the same order and href", () => {
     const { container } = render(<NavBar />);
     const nav = container.querySelector('[aria-label="Main"]');
@@ -77,6 +83,7 @@ describe("NavBar", () => {
       "Signals",
       "Rewards",
       "Bonds",
+      "Guardian",
       "Drafts",
       "Delegates",
       "Analytics",
@@ -96,6 +103,7 @@ describe("NavBar", () => {
       "/signals",
       "/rewards",
       "/bonds",
+      "/guardian",
       "/drafts",
       "/delegates",
       "/analytics",

@@ -30,9 +30,27 @@ guardian. The council's calls to `pause`, `unpause`, `cancel`, and
 4. The action is marked executed before the external Governor call is made.
 
 Supported actions are `Pause`, `Unpause`, `CancelActive`, `CancelQueued`,
-`RotateMember`, and `SetThreshold`. Membership and threshold changes are
+`RotateMember`, `SetThreshold`, and `SetActionTtl`. Membership and threshold changes are
 themselves council actions, so there is no unauthenticated administrative
 setter.
+
+## Dashboard
+
+The app serves the council at `/guardian`. Set
+`NEXT_PUBLIC_GUARDIAN_COUNCIL_ADDRESS` (docker-compose maps it from
+`GUARDIAN_COUNCIL_ADDRESS`) and connect a wallet. The page lists the members,
+the approval threshold, and every action with its approval progress.
+
+- Council members see **Approve** on actions they have not approved and
+  **Revoke approval** on ones they have.
+- Any connected wallet sees **Execute** once an action has enough approvals,
+  matching the contract, where `execute_action` is permissionless.
+- Only approvals from current members count toward the threshold; approvals
+  from rotated-out members are shown separately as not counted.
+- Executed actions are hidden by default; tick **Show executed** to list them.
+
+The contract has no action counter, so the page reads actions by id until the
+first one that does not exist (up to 100).
 
 ## Operational safety
 

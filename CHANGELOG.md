@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Fuzz targets for the liquidity pool, co-sponsorship drafts, and conviction voting, and a standalone `fuzz` workspace so `cargo fuzz build` works (#1387, #1391, #1392).
+- Guardian council page at `/guardian` to view members, the threshold, and pending actions, and to approve, revoke, and execute them; SDK `GuardianCouncilClient` gains wallet-signing variants, `getActionTtl`, `listActions`, and the `SetActionTtl` action (#1397).
 - Guardian Council SDK client with typed action encoding and CLI commands for proposing, approving, revoking, executing, and inspecting actions (#1395, #1396).
 - Guardian Council contract entry in the README and `GUARDIAN_COUNCIL_ADDRESS` in the root environment template (#1394, #1398).
 
@@ -44,6 +46,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Backend: batch updates for signaling_votes voting_power computation (#1168)
 
 ### Fixed
+
+- SDK build: restore `ConvictionVotingConfig.indexerUrl` and export `VoteEscrowLock` / `VoteEscrowStats` from their defining module.
+- `fuzz/timelock.rs` no longer shadows `Vec` with the Soroban type, so it compiles.
 
 - Vote Escrow: reordered withdraw checks to prevent reentrancy, optimized checkpoints, fixed initialization accepting invalid min_lock_duration > max_lock_duration and zero max duration (#1367, #1363, #1362)
 - Vote Escrow: overflow policy corrected, event tests added (#1361, #1356, #1352)

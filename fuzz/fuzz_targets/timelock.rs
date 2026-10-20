@@ -13,8 +13,8 @@ use sorogov_timelock::{TimelockContract, TimelockContractClient};
 struct Input {
     delay: u64,
     execution_window: u64,
-    salt: Vec<u8>,
-    predecessor: Vec<u8>,
+    salt: std::vec::Vec<u8>,
+    predecessor: std::vec::Vec<u8>,
 }
 
 fuzz_target!(|input: Input| {
