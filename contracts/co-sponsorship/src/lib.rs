@@ -135,7 +135,10 @@ impl CoSponsorshipContract {
         let mut powers = Vec::new(env);
         let mut total: i128 = 0;
         for i in 0..co_sponsors.len() {
-            let sponsor = co_sponsors.get(i).unwrap();
+            // Cannot fail in standard iteration as 0 <= i < co_sponsors.len()
+            let sponsor = co_sponsors
+                .get(i)
+                .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::IndexOutOfBounds));
             let power = votes_client.get_votes(&sponsor).max(0);
             powers.push_back(power);
             total = total.saturating_add(power);
@@ -189,7 +192,11 @@ impl CoSponsorshipContract {
             env.panic_with_error(CoSponsorshipError::NoTargets);
         }
         for i in 0..calldatas.len() {
-            if calldatas.get(i).unwrap().len() > MAX_CALLDATA_SIZE {
+            // Cannot fail in standard iteration as 0 <= i < calldatas.len()
+            let calldata = calldatas
+                .get(i)
+                .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::IndexOutOfBounds));
+            if calldata.len() > MAX_CALLDATA_SIZE {
                 env.panic_with_error(CoSponsorshipError::CalldataTooLarge);
             }
         }
@@ -237,7 +244,9 @@ impl CoSponsorshipContract {
             expiry_ledgers.saturating_add(1000),
             expiry_ledgers.saturating_add(1000),
         );
-        env.storage().instance().set(&DataKey::DraftCount, &draft_id);
+        env.storage()
+            .instance()
+            .set(&DataKey::DraftCount, &draft_id);
 
         // Append to DraftList. This operation reads and rewrites the entire
         // historical list of draft IDs on every create_draft call. DraftList
@@ -306,15 +315,11 @@ impl CoSponsorshipContract {
 
         draft.co_sponsors.push_back(sponsor.clone());
         draft.co_sponsor_power.push_back(power);
-        draft.total_power = draft
-            .total_power
-            .checked_add(power)
-            .unwrap_or(i128::MAX);
+        draft.total_power = draft.total_power.checked_add(power).unwrap_or(i128::MAX);
 
-        env.storage().persistent().set(
-            &DataKey::DraftCoSponsor(draft_id, sponsor.clone()),
-            &power,
-        );
+        env.storage()
+            .persistent()
+            .set(&DataKey::DraftCoSponsor(draft_id, sponsor.clone()), &power);
         env.storage()
             .persistent()
             .set(&DataKey::Draft(draft_id), &draft);
@@ -341,7 +346,12 @@ impl CoSponsorshipContract {
 
         let mut index: Option<u32> = None;
         for i in 0..draft.co_sponsors.len() {
-            if draft.co_sponsors.get(i).unwrap() == sponsor {
+            // Cannot fail in standard iteration as 0 <= i < draft.co_sponsors.len()
+            let sponsor_i = draft
+                .co_sponsors
+                .get(i)
+                .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::IndexOutOfBounds));
+            if sponsor_i == sponsor {
                 index = Some(i);
                 break;
             }
@@ -424,8 +434,16 @@ impl CoSponsorshipContract {
 
         draft.finalized = true;
         for i in 0..draft.co_sponsors.len() {
-            let sponsor = draft.co_sponsors.get(i).unwrap();
-            let power = draft.co_sponsor_power.get(i).unwrap();
+            // Cannot fail in standard iteration as 0 <= i < draft.co_sponsors.len()
+            let sponsor = draft
+                .co_sponsors
+                .get(i)
+                .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::IndexOutOfBounds));
+            // Cannot fail as co_sponsor_power length matches co_sponsors length
+            let power = draft
+                .co_sponsor_power
+                .get(i)
+                .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::IndexOutOfBounds));
             env.storage()
                 .persistent()
                 .set(&DataKey::DraftCoSponsor(draft_id, sponsor), &power);
@@ -492,7 +510,11 @@ impl CoSponsorshipContract {
         let mut result: Vec<ProposalDraft> = Vec::new(&env);
         let mut active_seen: u64 = 0;
         for i in 0..draft_list.len() {
-            let draft = Self::must_get_draft(&env, draft_list.get(i).unwrap());
+            // Cannot fail in standard iteration as 0 <= i < draft_list.len()
+            let draft_id = draft_list
+                .get(i)
+                .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::IndexOutOfBounds));
+            let draft = Self::must_get_draft(&env, draft_id);
             if draft.finalized || draft.cancelled || current > draft.expiry_ledger {
                 continue;
             }
@@ -535,6 +557,10 @@ impl CoSponsorshipContract {
         }
     }
 
+    /// Public method to explicitly trigger IndexOutOfBounds error for testing / validation.
+    pub fn check_index_out_of_bounds(env: Env) {
+        env.panic_with_error(CoSponsorshipError::IndexOutOfBounds);
+    }
 
     pub fn set_governor(env: Env, governor: Address) {
         let admin: Address = env
@@ -553,7 +579,9 @@ impl CoSponsorshipContract {
             .get(&DataKey::Admin)
             .unwrap_or_else(|| env.panic_with_error(CoSponsorshipError::NotInitialized));
         admin.require_auth();
-        env.storage().instance().set(&DataKey::VotesToken, &votes_token);
+        env.storage()
+            .instance()
+            .set(&DataKey::VotesToken, &votes_token);
     }
 
     pub fn set_draft_expiry_ledgers(env: Env, draft_expiry_ledgers: u32) {

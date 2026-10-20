@@ -2,9 +2,11 @@
 
 #![no_main]
 
+use std::vec::Vec;
+
 use arbitrary::Arbitrary;
 use libfuzzer_sys::fuzz_target;
-use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, Symbol, Vec};
+use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, Symbol, Vec as SorobanVec};
 use sorogov_timelock::{TimelockContract, TimelockContractClient};
 
 #[derive(Arbitrary, Debug)]
@@ -41,7 +43,7 @@ fuzz_target!(|input: Input| {
         assert!(!client.is_done(&op_id));
     }
 
-    let mut nodes = Vec::new(&env);
+    let mut nodes = SorobanVec::new(&env);
     nodes.push_back(Bytes::from_slice(&env, b"a"));
     nodes.push_back(Bytes::from_slice(&env, b"b"));
     let validation = client.validate_dependency_dag(&nodes);

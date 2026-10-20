@@ -47,7 +47,9 @@ enum MockGovKey {
 #[contractimpl]
 impl MockGovernorContract {
     pub fn set_threshold(env: Env, threshold: i128) {
-        env.storage().instance().set(&MockGovKey::Threshold, &threshold);
+        env.storage()
+            .instance()
+            .set(&MockGovKey::Threshold, &threshold);
     }
 
     pub fn proposal_threshold(env: Env) -> i128 {
@@ -76,7 +78,11 @@ impl MockGovernorContract {
         _fn_names: Vec<Symbol>,
         _calldatas: Vec<Bytes>,
     ) -> u64 {
-        let count: u64 = env.storage().instance().get(&MockGovKey::Count).unwrap_or(0);
+        let count: u64 = env
+            .storage()
+            .instance()
+            .get(&MockGovKey::Count)
+            .unwrap_or(0);
         let id = count + 1;
         env.storage().instance().set(&MockGovKey::Count, &id);
         id
@@ -564,20 +570,34 @@ fn test_finalize_draft_success_with_changed_sponsor_power() {
     assert!(finalized.finalized);
 
     // total_power reflects live recheck (800 + 500 = 1300, not stale 1100)
-    assert_eq!(finalized.total_power, 1_300,
-        "total_power must be rechecked against live voting power");
+    assert_eq!(
+        finalized.total_power, 1_300,
+        "total_power must be rechecked against live voting power"
+    );
 
     // Per-sponsor entries must also be rechecked to match the live values.
-    assert_eq!(finalized.co_sponsor_power.get(0).unwrap(), 800,
-        "co_sponsor_power[0] should reflect the sponsor's latest live power");
-    assert_eq!(finalized.co_sponsor_power.get(1).unwrap(), 500,
-        "co_sponsor_power[1] should remain unchanged when its power is unchanged");
+    assert_eq!(
+        finalized.co_sponsor_power.get(0).unwrap(),
+        800,
+        "co_sponsor_power[0] should reflect the sponsor's latest live power"
+    );
+    assert_eq!(
+        finalized.co_sponsor_power.get(1).unwrap(),
+        500,
+        "co_sponsor_power[1] should remain unchanged when its power is unchanged"
+    );
 
     // Same for the per-sponsor storage key.
-    assert_eq!(client.get_co_sponsor_power(&draft_id, &sponsor_a), 800,
-        "get_co_sponsor_power should return the latest live power");
-    assert_eq!(client.get_co_sponsor_power(&draft_id, &sponsor_b), 500,
-        "get_co_sponsor_power should return the latest live power");
+    assert_eq!(
+        client.get_co_sponsor_power(&draft_id, &sponsor_a),
+        800,
+        "get_co_sponsor_power should return the latest live power"
+    );
+    assert_eq!(
+        client.get_co_sponsor_power(&draft_id, &sponsor_b),
+        500,
+        "get_co_sponsor_power should return the latest live power"
+    );
 }
 
 #[test]
@@ -589,6 +609,16 @@ fn test_uninitialized_calls_revert() {
     let client = CoSponsorshipContractClient::new(&env, &contract_id);
     // Directly invoke the helper that checks for initialization
     client.check_not_initialized();
+}
+
+#[test]
+#[should_panic(expected = "Error(Contract, #16)")]
+fn test_index_out_of_bounds_reverts() {
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(CoSponsorshipContract, ());
+    let client = CoSponsorshipContractClient::new(&env, &contract_id);
+    client.check_index_out_of_bounds();
 }
 
 #[test]
@@ -664,4 +694,3 @@ fn test_withdraw_co_sponsorship_succeeds_after_expiry() {
     assert_eq!(draft_after.total_power, 0);
     assert_eq!(client.get_co_sponsor_power(&draft_id, &sponsor), 0);
 }
-

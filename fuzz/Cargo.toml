@@ -9,8 +9,8 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-arbitrary = { version = "1", features = ["derive"] }
-soroban-sdk = { workspace = true }
+arbitrary = { version = "~1.3.0", features = ["derive"] }
+soroban-sdk = { version = "22.0.0", features = ["testutils"] }
 
 [dependencies.sorogov-governor]
 path = "../contracts/governor"
@@ -23,6 +23,12 @@ path = "../contracts/timelock"
 
 [dependencies.sorogov-proposal-bonds]
 path = "../contracts/proposal-bonds"
+
+[dependencies.sorogov-vote-escrow]
+path = "../contracts/vote-escrow"
+
+[dependencies.sorogov-voting-rewards]
+path = "../contracts/voting-rewards"
 
 [[bin]]
 name = "governor_state"
@@ -47,4 +53,14 @@ doc = false
 [[bin]]
 name = "proposal_bonds"
 path = "fuzz_targets/proposal_bonds.rs"
+doc = false
+
+[[bin]]
+name = "vote_escrow"
+path = "fuzz_targets/vote_escrow.rs"
+doc = false
+
+[[bin]]
+name = "voting_rewards_merkle"
+path = "fuzz_targets/voting_rewards_merkle.rs"
 doc = false

@@ -173,6 +173,27 @@ frontend `/rewards` route.
 - `PoolFunded`: Tokens added to the pool
 - `EpochSwept`: Unclaimed rewards returned to the pool
 
+#### Co-Sponsorship Contract
+Pools community voting power to meet the proposal threshold (`contracts/co-sponsorship/`). See [Co-Sponsorship](./co-sponsorship.md) for full entrypoints, events, errors, and deployment details.
+
+Allows token holders who do not independently meet the proposal threshold to draft a proposal and collect pledges from other token holders:
+- `create_draft` creates a pre-proposal draft with actions and calldata (bounded by `MAX_CALLDATA_SIZE` and `MAX_CALLDATA_COUNT`)
+- `co_sponsor` and `withdraw_co_sponsorship` let addresses pledge and withdraw voting power toward a draft
+- `finalize_draft` re-verifies live co-sponsor power against the governor's reputation-adjusted `get_effective_threshold` and promotes the draft via `propose_via_registry`
+- `cancel_draft` allows the creator or admin to cancel an open draft; `get_draft` and `get_active_drafts` provide read and paginated access
+
+**Depends on:** `token-votes` (for reading live voting power via `get_votes`) and `governor` (which exposes `get_effective_threshold` and `propose_via_registry`).
+
+**Read by:** the SDK's `CoSponsorshipClient`, frontends for pre-proposal browsing and co-sponsorship flows, and the indexer.
+
+**Key Events:**
+- `DraftCreated`: Pre-proposal draft created
+- `CoSponsored`: Voting power pledged to a draft
+- `CoSponsorshipWithdrawn`: Pledged power withdrawn
+- `DraftFinalized`: Draft reached threshold and promoted to governor proposal
+- `DraftCancelled`: Draft cancelled by creator or admin
+- `DraftExpired`: Expired draft observed
+
 ### Voting-weight sources
 
 The governor reads voting weight through a three-method interface on the contract it is pointed at:

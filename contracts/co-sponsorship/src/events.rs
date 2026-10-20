@@ -34,7 +34,13 @@ pub fn emit_draft_created(env: &Env, draft: &ProposalDraft) {
     );
 }
 
-pub fn emit_co_sponsored(env: &Env, draft_id: u64, sponsor: &Address, power: i128, total_power: i128) {
+pub fn emit_co_sponsored(
+    env: &Env,
+    draft_id: u64,
+    sponsor: &Address,
+    power: i128,
+    total_power: i128,
+) {
     env.events().publish(
         (Symbol::new(env, CO_SPONSORED_TOPIC), sponsor.clone()),
         (draft_id, power, total_power),
@@ -49,7 +55,10 @@ pub fn emit_co_sponsorship_withdrawn(
     total_power: i128,
 ) {
     env.events().publish(
-        (Symbol::new(env, CO_SPONSORSHIP_WITHDRAWN_TOPIC), sponsor.clone()),
+        (
+            Symbol::new(env, CO_SPONSORSHIP_WITHDRAWN_TOPIC),
+            sponsor.clone(),
+        ),
         (draft_id, power, total_power),
     );
 }

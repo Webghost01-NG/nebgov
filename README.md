@@ -28,6 +28,7 @@ NebGov is the canonical governance framework for the Stellar ecosystem — a mod
 | Proposal bonds         | Refundable proposer bonds with governance-triggered slashing ([docs](./docs/proposal-bonds.md)) |
 | Guardian Council       | M-of-N emergency pause and cancellation authority ([docs](./docs/guardian-council.md)) |
 | Gasless signaling      | Off-chain polling with on-chain result anchoring ([docs](./docs/signal-anchor.md)) |
+| Co-sponsorship         | Pool voting power across multiple token holders to meet the proposal threshold ([docs](./docs/co-sponsorship.md)) |
 
 ---
 
@@ -44,7 +45,7 @@ NebGov is the canonical governance framework for the Stellar ecosystem — a mod
 | `contracts/governor-factory`    | Permissionless governor deployer                                 |
 | `contracts/treasury`            | Multi-sig treasury with budget streams                           |
 | `contracts/token-votes-wrapper` | SEP-41 token wrapper that adds governance voting                 |
-| `contracts/co-sponsorship`      | Pool voting power to meet the proposal threshold                 |
+| `contracts/co-sponsorship`      | Pool voting power to meet the proposal threshold ([docs](./docs/co-sponsorship.md)) |
 | `contracts/liquidity`           | Protocol-owned liquidity pools (constant-product AMM)            |
 | `contracts/proposal-bonds`      | Refundable proposer bonds with governance-triggered slashing     |
 | `contracts/optimistic-governor` | Object-to-block optimistic proposal track                        |
